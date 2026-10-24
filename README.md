@@ -101,7 +101,33 @@ never serve a release even if its rewrite function is wrong.
 
 ## If you are taking this over
 
-You need: this repository, the three site repositories, and administrator access
-to AWS account 245395155677. Nothing here depends on Coa Solutions. The AWS
-account can be moved to your own billing by AWS's documented process; the
+You need three things: this repository, the three site repositories, and
+administrator access to AWS account **245395155677**. The account holds nothing
+but these three websites. AWS has a documented process for moving an account to
+a new owner's billing; everything in it survives intact. The domain
 registrations are at Route 53 in the same account.
+
+Nothing in this repository names a person, a profile or a system belonging to
+the contractor. `render.py` uses whatever AWS credentials your shell already has
+and checks it is pointed at the right account before it does anything.
+
+**Two things in the AWS account are the contractor's and should be replaced when
+the relationship ends. Neither stops the sites working.**
+
+1. **`/organize/github-token`** (SSM, SecureString) is the token the builds post
+   preview links with. It is currently the contractor's GitHub token and carries
+   far more access than this needs. Replace it with a fine-grained token owned by
+   Organize, scoped to the three site repositories with **pull requests: write**
+   and nothing else. Until you do, a revoked token means pull-request previews
+   stop being *commented* — they are still built and still published, because
+   `publish.sh` treats a failed comment as a warning and carries on. Publishing
+   to the live sites does not use this token at all.
+
+2. **The three build roles** live under the IAM path `/fleet/managed/` and carry
+   a permissions boundary named `fleet/guardrail/FleetManagedBoundary`. "fleet"
+   is the contractor's word. The boundary policy lives **inside this account**,
+   so it travels with the account and nothing breaks on handover — but if the
+   naming bothers you, the roles can be recreated under any path with any
+   boundary. The pipeline does not care what they are called.
+
+Nothing else reaches outside the account.

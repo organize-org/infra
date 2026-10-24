@@ -34,7 +34,13 @@ except ModuleNotFoundError:  # tomllib is standard from 3.11; macOS still ships 
 HERE = Path(__file__).parent
 PROJECT = {"opodata": "opodata-site", "costlyeffects": "ord-site",
            "organdonationreform": "odr-site"}
-PROFILE = "coa-organdonation-sso"
+
+# No profile name is hard-coded. This used to say "coa-organdonation-sso", which is the
+# contractor's CLI profile and would mean nothing to anyone else — the first thing a new
+# owner ran would have failed for a reason that had nothing to do with their AWS access.
+# Whatever credentials the shell already has for account 245395155677 are used: an
+# AWS_PROFILE, an SSO session, instance credentials, environment keys, any of them.
+ACCOUNT = "245395155677"
 
 
 def buildspec(key: str, cfg: dict) -> str:
@@ -96,14 +102,27 @@ phases:
 """
 
 
-def live(project: str) -> str:
-    out = subprocess.run(
-        ["aws", "codebuild", "batch-get-projects", "--names", project,
-         "--query", "projects[0].source.buildspec", "--output", "text"],
-        env={"AWS_PROFILE": PROFILE, "PATH": "/usr/local/bin:/usr/bin:/bin",
-             "HOME": str(Path.home())},
-        capture_output=True, text=True, check=True)
+def aws(*args: str) -> str:
+    """The AWS CLI with whatever credentials the shell already has. Checks it is pointed at
+    the right account first, because running these against the wrong one would be confusing
+    rather than harmless."""
+    out = subprocess.run(["aws", *args], capture_output=True, text=True)
+    if out.returncode:
+        raise SystemExit(f"aws {' '.join(args[:3])} failed:\n{out.stderr.strip()}")
     return out.stdout
+
+
+def check_account() -> None:
+    got = aws("sts", "get-caller-identity", "--query", "Account", "--output", "text").strip()
+    if got != ACCOUNT:
+        raise SystemExit(
+            f"these credentials are for account {got}, and the sites live in {ACCOUNT}.\n"
+            f"Point AWS_PROFILE (or your SSO session) at {ACCOUNT} and try again.")
+
+
+def live(project: str) -> str:
+    return aws("codebuild", "batch-get-projects", "--names", project,
+               "--query", "projects[0].source.buildspec", "--output", "text")
 
 
 def main() -> int:
@@ -117,6 +136,7 @@ def main() -> int:
     flag = sys.argv[2] if len(sys.argv) > 2 else ""
 
     if flag == "--check":
+        check_account()
         if live(PROJECT[key]).strip() == spec.strip():
             print(f"{key}: the live buildspec matches the source")
             return 0
@@ -126,17 +146,14 @@ def main() -> int:
         return 1
 
     if flag == "--push":
-        subprocess.run(
-            ["aws", "codebuild", "update-project", "--name", PROJECT[key],
-             "--source", json.dumps({"type": "GITHUB",
-                                     "location": f"https://github.com/{cfg[key]['repo']}.git",
-                                     "buildspec": spec,
-                                     "gitCloneDepth": 1,
-                                     "reportBuildStatus": True}),
-             "--query", "project.name", "--output", "text"],
-            env={"AWS_PROFILE": PROFILE, "PATH": "/usr/local/bin:/usr/bin:/bin",
-                 "HOME": str(Path.home())},
-            check=True)
+        check_account()
+        aws("codebuild", "update-project", "--name", PROJECT[key],
+            "--source", json.dumps({"type": "GITHUB",
+                                    "location": f"https://github.com/{cfg[key]['repo']}.git",
+                                    "buildspec": spec,
+                                    "gitCloneDepth": 1,
+                                    "reportBuildStatus": True}),
+            "--query", "project.name", "--output", "text")
         print(f"{key}: pushed to {PROJECT[key]}")
         return 0
 
