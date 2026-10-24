@@ -111,19 +111,21 @@ Nothing in this repository names a person, a profile or a system belonging to
 the contractor. `render.py` uses whatever AWS credentials your shell already has
 and checks it is pointed at the right account before it does anything.
 
-**Two things in the AWS account are the contractor's and should be replaced when
-the relationship ends. Neither stops the sites working.**
+**One thing in the AWS account still carries the contractor's naming. It does not
+stop the sites working and does not reach outside the account.**
 
 1. **`/organize/github-token`** (SSM, SecureString) is the token the builds post
-   preview links with. It is currently the contractor's GitHub token and carries
-   far more access than this needs. Replace it with a fine-grained token owned by
-   Organize, scoped to the three site repositories with **pull requests: write**
-   and nothing else. Until you do, a revoked token means pull-request previews
-   stop being *commented* — they are still built and still published, because
-   `publish.sh` treats a failed comment as a warning and carries on. Publishing
-   to the live sites does not use this token at all.
+   preview links with. It is a fine-grained token whose resource owner is
+   **organize-org**, scoped to the three site repositories with **Pull requests:
+   write** and nothing else, and it **expires 2027-10-25** — 366 days is the
+   longest the organisation allows. Tested on creation: it cannot modify repo
+   settings (403), cannot write files (403), cannot read the organisation's
+   membership (403), and can post to the pull-request comment path on all three
+   repositories. When it expires, previews stop being *commented*; they are
+   still built and still published, because `publish.sh` treats a failed comment
+   as a warning and carries on. Publishing to the live sites never uses it.
 
-2. **The three build roles** live under the IAM path `/fleet/managed/` and carry
+**The three build roles** live under the IAM path `/fleet/managed/` and carry
    a permissions boundary named `fleet/guardrail/FleetManagedBoundary`. "fleet"
    is the contractor's word. The boundary policy lives **inside this account**,
    so it travels with the account and nothing breaks on handover — but if the
