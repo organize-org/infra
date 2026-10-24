@@ -120,8 +120,9 @@ def main() -> int:
         if live(PROJECT[key]).strip() == spec.strip():
             print(f"{key}: the live buildspec matches the source")
             return 0
-        print(f"{key}: THE LIVE BUILDSPEC DOES NOT MATCH ship/ — someone edited the "
-              f"project directly, or the source moved on without being pushed", file=sys.stderr)
+        print(f"{key}: the live buildspec does not match this repository — someone edited the "
+              f"CodeBuild project directly, or the source here moved on without being pushed",
+              file=sys.stderr)
         return 1
 
     if flag == "--push":
