@@ -1,0 +1,63 @@
+# The two Organize sites, and the only place their shipping differs.
+#
+# Everything else — how a release is written, proven, pointed at and undone — is
+# publish.sh, shared by both. A new site is a block here, not a new pipeline.
+#
+# min_pages is a floor, not a count: it exists so a build that renders a fraction
+# of the site cannot become the live site. Set it below today's real page count
+# with room for pages to be removed on purpose, and well above a broken build.
+
+[opodata]
+site         = "opodata.org"
+repo         = "organize-org/opo-data"
+bucket       = "opodata-site"
+dist         = "E1ZA50WGLCNLW2"
+preview_host = "preview.opodata.org"
+runtime      = "nodejs"
+runtime_ver  = "22"
+build        = ["npm ci", "npm run build"]
+out_dir      = "public"
+# Measured, not guessed: the live release fcd25fb contains exactly 8 HTML files.
+# Gatsby renders few of them because the per-OPO and per-state pages are client-side
+# routes (`opo/[opo]`, `state/[state]`) rather than files, so a page count says much
+# less here than it does for the Jekyll site. 6 leaves room to retire a page and
+# still catches a build that collapsed.
+min_pages    = 6
+github_token = "/organize/github-token"
+
+[costlyeffects]
+site         = "costlyeffects.organdonationreform.org"
+repo         = "organize-org/costly-effects"
+bucket       = "costlyeffects-organdonationreform-org"
+dist         = "ESJRQ7EDXGQIH"
+preview_host = "preview.costlyeffects.organdonationreform.org"
+# Jekyll. The lockfile needs Ruby 3.1+, which is why this site could not be built
+# on the owner's laptop (system Ruby 2.6.10) and had to be shipped by hand from
+# whichever machine happened to have a working Ruby.
+runtime      = "ruby"
+runtime_ver  = "3.2"
+build        = ["bundle install --quiet", "bundle exec jekyll build"]
+out_dir      = "_site"
+# Measured: release 4772557 renders 23 HTML pages. 12 leaves room for chapters to be
+# merged or dropped and still refuses a build that rendered a fraction of the report.
+min_pages    = 12
+github_token = "/organize/github-token"
+
+[organdonationreform]
+site         = "organdonationreform.org"
+repo         = "organize-org/organdonationreform"
+bucket       = "organdonationreform-org"
+dist         = "E2R05YEKT1LB26"
+preview_host = "preview.organdonationreform.org"
+# No framework. build.js is the whole build and uses only Node's standard library,
+# so there is nothing to install and nothing to rot. A three-page reference site
+# does not need more, and this one has to still build in five years.
+runtime      = "nodejs"
+runtime_ver  = "22"
+build        = ["node --test", "node build.js"]
+out_dir      = "_site"
+# Measured: three pages plus the 404. The floor is 3 because losing any one of
+# them is the failure worth catching; the build itself already refuses an empty
+# or unparseable page.
+min_pages    = 3
+github_token = "/organize/github-token"
